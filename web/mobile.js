@@ -155,7 +155,7 @@ async function mSaveSleep() {
     refresh();
   } catch {}
 }
-const mDur = (min) => `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, "0")} min` : ""}`;
+const mDur = (min) => min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, "0")} min` : ""}`;
 
 function mSueno() {
   const z = S.data.mobile.sleep || { nights: [] };
