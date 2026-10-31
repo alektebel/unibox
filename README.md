@@ -9,7 +9,17 @@ finds the slot to do it, and keeps the infinite feeds from eating your day.</b><
   <img alt="self-hosted" src="https://img.shields.io/badge/self--hosted-your%20data%2C%20your%20server-3F6B4C">
 </p>
 
-<!-- media: docs/demo.mp4 and docs/screens/*.png -->
+<p align="center">
+  <a href="docs/demo.mp4"><img src="docs/poster.png" alt="Watch the 45 second demo" width="720"></a><br>
+  <sub>▶ 45 s demo (the interface running on fictional data; the notification scene is a recreation)</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screens/home.png" width="190" alt="Home">
+  <img src="docs/screens/saved.png" width="190" alt="Saved">
+  <img src="docs/screens/screen-time.png" width="190" alt="Screen time">
+  <img src="docs/screens/sleep.png" width="190" alt="Sleep">
+</p>
 
 Unibox is two things that work together:
 
