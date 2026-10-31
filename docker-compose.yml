@@ -1,0 +1,35 @@
+services:
+  unibox:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # taken from your shell (~/.bashrc) when you run compose, or from .env on the server
+      NAN_API_KEY: ${NAN_API_KEY:-}
+      # WhatsApp export timestamps and the morning digest are local time
+      TZ: ${TZ:-Europe/Madrid}
+    volumes:
+      - unibox-data:/data
+    expose:
+      - "8124"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      UNIBOX_DOMAIN: ${UNIBOX_DOMAIN:?set UNIBOX_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - unibox
+
+volumes:
+  unibox-data:
+  caddy-data:
+  caddy-config:

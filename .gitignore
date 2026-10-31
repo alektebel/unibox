@@ -1,0 +1,22 @@
+node_modules/
+dist/
+data/
+session/
+.env
+inbound/linkedin/*
+!inbound/linkedin/.gitkeep
+inbound/whatsapp/*
+!inbound/whatsapp/.gitkeep
+inbound/notes/*
+!inbound/notes/.gitkeep
+digests/
+
+# original scaffold archive, not source
+Unibox notification aggregation system.zip
+
+# personal exports / deploy bundles
+*.zip
+unibox-deploy.tar.gz
+
+# baked server address + token (contains a secret)
+android-web/config.js

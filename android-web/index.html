@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F3EE">
+<title>unibox</title>
+<style>
+  @font-face { font-family: "Geist"; font-weight: 400 600; font-display: swap; src: url("fonts/geist-latin.woff2") format("woff2"); }
+  :root { --bg:#F4F3EE; --surface:#FFFFFF; --text:#1E2620; --accent:#3F6B4C; --accent2:#26392B; --div:#E6E4DD; --muted:#6B7068; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text); font-family: "Geist", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+    padding-top: calc(24px + env(safe-area-inset-top));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+  .card { width: min(440px, 100%); display: flex; flex-direction: column; gap: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px #E3EAE2; }
+  .brand b { font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
+  h1 { font-size: 28px; font-weight: 500; margin: 8px 0 2px; letter-spacing: -0.03em; line-height: 1.1; }
+  p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+  label { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+  input {
+    width: 100%; min-height: 48px; padding: 10px 14px; font: inherit; font-size: 15px;
+    color: var(--text); background: var(--surface); border: 1px solid var(--div); border-radius: 12px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  button {
+    margin-top: 8px; min-height: 48px; font: inherit; font-size: 15px; font-weight: 500;
+    color: #fff; background: var(--accent2); border: 0; border-radius: 12px; cursor: pointer;
+  }
+  button:disabled { opacity: .5; }
+  .row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  a.link { color: var(--accent); font-size: 12.5px; text-decoration: none; }
+  .err { color: #8E3B2B; font-size: 12.5px; display: none; }
+  [hidden] { display: none !important; }
+  .pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  button.ghost { background: none; color: var(--accent); border: 1px solid var(--div); }
+  .apps { display: flex; flex-direction: column; margin-top: 18px; max-height: 50vh; overflow-y: auto; }
+  .apps button { margin: 0; min-height: 46px; text-align: left; background: none; color: var(--text); border-radius: 0;
+    border-bottom: 1px solid var(--div); font-size: 17px; padding: 0 2px; }
+  .apps button.off { color: var(--muted); }
+</style>
+<script src="config.js"></script>
+</head>
+<body>
+  <!-- With a built-in server (config.js) this is all you ever see: no address, no token. -->
+  <div class="card" id="wait" hidden>
+    <div class="brand"><span class="dot pulse" id="wait-dot"></span><b>unibox</b></div>
+    <h1 id="wait-title">Abriendo…</h1>
+    <p id="wait-text"></p>
+    <button class="ghost" id="retry" hidden>Reintentar ahora</button>
+    <!-- as the home screen, being offline must not cost you your apps -->
+    <div id="apps" class="apps" hidden></div>
+  </div>
+
+  <div class="card" id="setup" hidden>
+    <div class="brand"><span class="dot"></span><b>unibox</b></div>
+    <h1>Conecta con tu servidor.</h1>
+    <p>Unibox corre en tu propio ordenador. Escribe la dirección de la máquina donde ejecutas
+       <code>npm run serve</code> — por ejemplo <b>http://192.168.1.20:8124</b> o tu dirección
+       <b>https://…ts.net</b> de Tailscale.</p>
+
+    <label for="url">Dirección del servidor</label>
+    <input id="url" type="url" inputmode="url" autocomplete="off" placeholder="http://192.168.1.20:8124">
+
+    <label for="token">Token de acceso (si usas UNIBOX_TOKEN)</label>
+    <input id="token" type="password" autocomplete="off" placeholder="opcional">
+
+    <button id="go">Conectar</button>
+    <div class="err" id="err">Escribe una dirección completa que empiece por http:// o https://</div>
+    <div class="row"><a class="link" id="forget" style="display:none">Olvidar este servidor</a></div>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const KEY = "unibox_server";
+  const TOK = "unibox_token";
+  // Optional baked-in defaults (android-web/config.js): zero first-run setup.
+  const DEFAULT_SERVER = ((window.UNIBOX_DEFAULT_SERVER || "") + "").trim();
+  const DEFAULT_TOKEN = ((window.UNIBOX_DEFAULT_TOKEN || "") + "").trim();
+  const norm = (v) => (v || "").trim().replace(/\/+$/, "");
+  const valid = (v) => /^https?:\/\/[^\s]+$/i.test(v);
+  const dest = (url, token) => (token ? url + "/?token=" + encodeURIComponent(token) : url + "/");
+
+  function status(msg) { $("err").textContent = msg; $("err").style.display = "block"; }
+
+  async function probe(url) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 6000);
+      // any answer means it's reachable; a tiny static file, not the whole state
+      await fetch(url + "/manifest.webmanifest", { mode: "no-cors", cache: "no-store", signal: ctrl.signal });
+      clearTimeout(t);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function connect() {
+    const url = norm($("url").value);
+    const token = ($("token").value || "").trim();
+    if (!valid(url)) { status("Escribe una dirección completa que empiece por http:// o https://"); return; }
+    localStorage.setItem(KEY, url);
+    localStorage.setItem(TOK, token);
+    handToNative(url, token);
+    location.replace(dest(url, token));
+  }
+
+  // Android shares (photos, links from other apps) are posted natively, so it needs the address too.
+  function handToNative(url, token) {
+    try {
+      if (window.UniboxNative && window.UniboxNative.saveServer) window.UniboxNative.saveServer(url, token);
+    } catch (e) {}
+  }
+
+  function showApps() {
+    if (!$("apps").hidden || !window.UniboxNative || !window.UniboxNative.listApps) return;
+    let apps = [];
+    try { apps = JSON.parse(window.UniboxNative.listApps()); } catch (e) {}
+    apps.sort((a, b) => a.label.localeCompare(b.label, "es"));
+    for (const a of apps) {
+      const b = document.createElement("button");
+      b.textContent = a.label;
+      if (a.blocked) b.className = "off";
+      b.addEventListener("click", () => window.UniboxNative.launchApp(a.pkg));
+      $("apps").appendChild(b);
+    }
+    $("apps").hidden = !apps.length;
+  }
+
+  // Built-in server: open straight into the app, and when it can't be reached keep
+  // retrying on our own (and the moment the phone comes back online) instead of asking.
+  async function openBuiltIn() {
+    $("wait").hidden = false;
+    const url = norm(DEFAULT_SERVER);
+    const failedBefore = new URLSearchParams(location.search).has("error");
+    let tries = 0;
+    const attempt = async () => {
+      $("wait-dot").classList.add("pulse");
+      if (await probe(url)) {
+        handToNative(url, DEFAULT_TOKEN);
+        location.replace(dest(url, DEFAULT_TOKEN));
+        return;
+      }
+      tries++;
+      $("wait-dot").classList.remove("pulse");
+      $("wait-title").textContent = "Sin conexión.";
+      $("wait-text").textContent = navigator.onLine
+        ? "No llego a Unibox ahora mismo. Lo vuelvo a intentar solo."
+        : "El teléfono no tiene internet. Entro en cuanto vuelva.";
+      $("retry").hidden = false;
+      showApps();
+      setTimeout(attempt, Math.min(30000, 3000 * tries));
+    };
+    $("retry").addEventListener("click", () => { tries = 0; attempt(); });
+    window.addEventListener("online", () => { tries = 0; attempt(); });
+    // after a failed page load, give the network a moment before the first retry
+    if (failedBefore) setTimeout(attempt, 1500); else attempt();
+  }
+
+  (async () => {
+    if (DEFAULT_SERVER) { openBuiltIn(); return; }
+    $("setup").hidden = false;
+    const saved = localStorage.getItem(KEY);
+    if (saved) {
+      $("url").value = saved;
+      $("forget").style.display = "inline";
+      $("go").textContent = "Abrir Unibox";
+    }
+    if (localStorage.getItem(TOK)) $("token").value = localStorage.getItem(TOK);
+
+    // Capacitor sends us back here (server.errorPath) when the server page fails to load:
+    // stay put with a retry instead of bouncing straight back into the error.
+    if (new URLSearchParams(location.search).has("error")) {
+      $("go").textContent = "Reintentar";
+      status("No he podido abrir " + (saved || "el servidor") + ". Comprueba la conexión y vuelve a intentarlo.");
+      return;
+    }
+    // Zero-tap launch: if a server is known and reachable, go straight in.
+    if (valid(saved) && (await probe(saved))) {
+      const token = (localStorage.getItem(TOK) || "").trim();
+      handToNative(norm(saved), token);
+      location.replace(dest(saved, token));
+      return;
+    }
+    if (saved) status("No llego a " + saved + ". Comprueba que el servidor está en marcha, o cámbiala abajo.");
+    setTimeout(() => $("go").focus(), 50);
+  })();
+
+  $("go").addEventListener("click", connect);
+  $("url").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+  $("token").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+  $("forget").addEventListener("click", () => {
+    localStorage.removeItem(KEY); localStorage.removeItem(TOK);
+    $("url").value = ""; $("token").value = ""; $("forget").style.display = "none";
+    $("go").textContent = "Conectar"; $("err").style.display = "none";
+  });
+</script>
+</body>
+</html>

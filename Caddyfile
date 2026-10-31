@@ -1,0 +1,7 @@
+# Caddy gets a trusted HTTPS certificate for UNIBOX_DOMAIN automatically.
+# Use a real domain pointed at this server, or an xip.io / sslip.io name
+# (e.g. 203-0-113-7.sslip.io) if you don't own one.
+{$UNIBOX_DOMAIN} {
+	encode gzip
+	reverse_proxy unibox:8124
+}

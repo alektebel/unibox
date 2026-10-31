@@ -1,0 +1,17 @@
+{
+  "appId": "app.unibox.launcher",
+  "appName": "unibox",
+  "webDir": "android-web",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "*"
+    ],
+    "errorPath": "index.html?error=1"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#F4F3EE"
+  }
+}

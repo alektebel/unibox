@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">unibox</string>
+    <string name="title_activity_main">unibox</string>
+    <string name="package_name">app.unibox.launcher</string>
+    <string name="custom_url_scheme">app.unibox.launcher</string>
+    <string name="blocker_description">Unibox mira qué app se abre para ponerte delante lo que toca: durante tus bloques, el horario de trabajo y la noche, las apps que no tocan piden una espera y un motivo. En los navegadores lee la dirección de la página para que los Shorts de YouTube no vuelvan por la web.</string>
+    <string name="blocker_label">Bloqueo de Unibox</string>
+</resources>

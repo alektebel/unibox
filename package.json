@@ -1,0 +1,52 @@
+{
+  "name": "unibox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "unibox": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsx src/index.ts check",
+    "test": "UNIBOX_LLM_OFF=1 UNIBOX_DATA_DIR=$(mktemp -d) tsx --test --test-concurrency=1 tests/*.test.ts",
+    "link": "tsx src/index.ts link",
+    "watch": "tsx src/index.ts watch",
+    "serve": "tsx src/index.ts serve",
+    "digest": "tsx src/index.ts digest",
+    "ingest": "tsx src/index.ts ingest",
+    "dump": "tsx src/index.ts dump",
+    "items": "tsx src/index.ts items",
+    "process": "tsx src/index.ts process",
+    "import-wa": "tsx src/index.ts import-wa",
+    "import-notes": "tsx src/index.ts import-notes",
+    "nudge": "tsx src/index.ts nudge",
+    "available": "tsx src/index.ts available",
+    "icons": "node scripts/make-icons.mjs",
+    "app-server": "node scripts/set-app-server.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "dotenv": "^16.4.5",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
+    "@types/node": "^22.13.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/web-push": "^3.6.4",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "protobufjs@7.6.6": true,
+    "@whiskeysockets/baileys@6.7.24": true
+  }
+}
