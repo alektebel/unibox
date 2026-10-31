@@ -384,3 +384,17 @@ body.m ::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .m-body > .m-row { justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--m-line, #E3E1D8); font-size: 15px; }
 .m-body > .m-row button { font: inherit; font-size: 13px; color: var(--m-green); background: none; border: 0; padding: 4px 6px; cursor: pointer; }
 .m-body > * { flex-shrink: 0; }
+
+/* Días */
+.d-row { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--m-line, #E3E1D8); padding: 12px 0; font: inherit; color: inherit; cursor: pointer; }
+.d-top { display: flex; align-items: center; gap: 14px; }
+.d-top b { font-size: 15px; font-weight: 500; min-width: 92px; }
+.d-bar { flex: 1; height: 5px; background: #E8E6DE; border-radius: 3px; overflow: hidden; }
+.d-bar i { display: block; height: 100%; background: var(--m-green); border-radius: 3px; }
+.d-bar i.over { background: #B5483A; }
+.d-line { display: block; margin-top: 6px; font-family: var(--m-mono); font-size: 11.5px; letter-spacing: .02em; color: var(--m-muted); }
+.d-more { display: block; margin-top: 8px; font-size: 13px; line-height: 1.5; color: var(--m-muted); }
+.d-pat { padding: 10px 0; font-size: 15px; line-height: 1.4; border-bottom: 1px solid var(--m-line, #E3E1D8); }
+.d-pat span { display: block; font-family: var(--m-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--m-green); margin-bottom: 3px; }
+#l-p0 .m-sstats { gap: 22px; }
+#l-p0 .m-sstats b { font-size: 21px; white-space: nowrap; }

@@ -147,6 +147,7 @@ public class BlockerService extends AccessibilityService {
         if (steadyMinutes >= DOOM_MINUTES - 1 && thisMinute >= SCROLLS_PER_MINUTE) {
             steadyMinutes = 0;
             minuteStart = 0;
+            ScreenTime.logDoom(this);
             ScreenTime.doomClosed(this, label(pkg), COOLDOWN_MINUTES);
             Policy.coolDown(this, COOLDOWN_MINUTES, "auto: " + DOOM_MINUTES + " min de scroll en " + label(pkg));
             enforce(pkg);

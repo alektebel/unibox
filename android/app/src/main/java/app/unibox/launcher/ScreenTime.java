@@ -45,7 +45,7 @@ final class ScreenTime {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("limit", m).apply();
     }
 
-    private static long midnight(long t) {
+    static long midnight(long t) {
         Calendar c = Calendar.getInstance();
         c.setTimeInMillis(t);
         c.set(Calendar.HOUR_OF_DAY, 0);
@@ -56,7 +56,7 @@ final class ScreenTime {
     }
 
     /** Foreground minutes per app between two instants (the launcher and system screens don't count). */
-    private static List<Object[]> perApp(Context ctx, long from, long to) {
+    static List<Object[]> perApp(Context ctx, long from, long to) {
         List<Object[]> out = new ArrayList<>();
         try {
             UsageStatsManager usm = (UsageStatsManager) ctx.getSystemService(Context.USAGE_STATS_SERVICE);
@@ -78,7 +78,7 @@ final class ScreenTime {
         return t;
     }
 
-    private static String label(Context ctx, String pkg) {
+    static String label(Context ctx, String pkg) {
         try {
             return ctx.getPackageManager().getApplicationLabel(ctx.getPackageManager().getApplicationInfo(pkg, 0)).toString();
         } catch (Exception e) {
@@ -147,6 +147,17 @@ final class ScreenTime {
     }
 
     private static final int ID_LIMIT = 7101, ID_DOOM = 7102;
+
+    /** Counts a doomscrolling episode (the feed was closed) on today's date, for the day-by-day history. */
+    static void logDoom(Context ctx) {
+        SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String k = "doom_" + midnight(System.currentTimeMillis());
+        p.edit().putInt(k, p.getInt(k, 0) + 1).apply();
+    }
+
+    static int doomOn(Context ctx, long midnight) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("doom_" + midnight, 0);
+    }
 
     static void doomWarning(Context ctx, String app, int minutes) {
         alert(ctx, ID_DOOM, "Llevas " + minutes + " min haciendo scroll en " + app,

@@ -182,6 +182,8 @@ const swipeLeft = () => swipe(W * 0.85, H * 0.45, W * 0.15, H * 0.45);
 const swipeRight = () => swipe(W * 0.15, H * 0.45, W * 0.85, H * 0.45);
 const swipeUp = () => swipe(W / 2, H * 0.82, W / 2, H * 0.4, 220);
 
+// the launcher's panels, left to right: Días, home, Guardado
+const P_DAYS = 0, P_HOME = 1, P_SAVED = 2;
 const panel = () => js(`(() => { const p = document.getElementById("l-pager"); return p ? Math.round(p.scrollLeft / p.clientWidth) : -1; })()`);
 async function waitPanel(n) {
   await waitFor(`(() => { const p = document.getElementById("l-pager"); return p && Math.round(p.scrollLeft / p.clientWidth) === ${n} && p.scrollLeft % p.clientWidth < 2; })()`, 5000, `panel ${n}`);
@@ -248,7 +250,7 @@ await step("Swipe left opens Hoy: at most the five things that matter now", asyn
   // the first second after opening, the app is still settling (no one swipes that fast)
   await sleep(1500);
   swipeLeft();
-  await waitPanel(1);
+  await waitPanel(P_SAVED);
   if (!(await js(`/GUARDADO/.test(document.querySelector("#l-p2 .m-kicker").textContent)`))) throw new Error("no Hoy heading");
   await waitFor(`(async () => { await refresh(); return !S.data.mobile.plan.planning; })()`, 60_000, "plan ready");
   const plan = await js(`S.data.mobile.plan`);
@@ -263,7 +265,7 @@ await step("Swipe left opens Hoy: at most the five things that matter now", asyn
   if (await js(`document.querySelectorAll("#l-p2 .l-todo, #l-p2 .l-gh").length`)) throw new Error("more than the top five is showing");
   console.log(`       shown: ${plan.top.map((x) => x.title.slice(0, 32)).join(" · ") || "(nothing)"}`);
   key("KEYCODE_BACK");
-  await waitPanel(0);
+  await waitPanel(P_HOME);
 });
 
 await step("The sleep estimate answers without breaking the home screen (a JSON night or nothing)", async () => {
@@ -283,7 +285,7 @@ await step("Sueño: a night is saved on the server and the stats screen shows it
 
 await step("Metas and the journal open from Guardado; the journal saves what you write, and back keeps it", async () => {
   swipeLeft();
-  await waitPanel(1);
+  await waitPanel(P_SAVED);
   await js(`(() => { [...document.querySelectorAll("#l-p2 .l-links button")].forEach((b) => b.dataset.e2e = b.textContent.trim()); return true; })()`);
   await tapEl('#l-p2 .l-links button[data-e2e="Metas y diario"]');
   await waitFor(`M.tab === "metas" && !!document.querySelector(".m-goal-row")`, 4000, "Metas");
@@ -382,16 +384,16 @@ await step("“Cuéntame algo” sheet: back closes it and the launcher keeps wo
   await waitFor(`!document.querySelector(".m-sheet")`, 4000, "sheet closed by back");
   if (await js(`M.draft !== "borrador"`)) throw new Error("the unsent text was lost");
   swipeLeft();
-  await waitPanel(1);
+  await waitPanel(P_SAVED);
   key("KEYCODE_BACK");
-  await waitPanel(0);
+  await waitPanel(P_HOME);
   // tidy: forget the draft
   await js(`M.draft = ""; mKeepDraft("unibox_draft", ""); true`);
 });
 
 await step("Sub-screen (Calendario y conexiones) has a back bar; Android back returns home", async () => {
   swipeLeft();
-  await waitPanel(1);
+  await waitPanel(P_SAVED);
   await js(`(() => { [...document.querySelectorAll("#l-p2 .l-links button")].forEach((b, i) => b.dataset.e2e = b.textContent.trim()); return true; })()`);
   await tapEl('#l-p2 .l-links button[data-e2e="Conexiones"]');
   await waitFor(`!!document.getElementById("m-fuentes")`, 5000, "Conexiones");
@@ -472,7 +474,7 @@ await js(`S.data.mobile.block ? mStopBlock(false) : null`).catch(() => {});
 
 await step("▶ on a planned or backlog thing starts a block: home shows it, the timer runs, non-allowed apps wait", async () => {
   swipeLeft();
-  await waitPanel(1);
+  await waitPanel(P_SAVED);
   await tapEl(`#l-p2 .l-slot .l-play`);
   // a reading slot also opens its article in the browser: come back to the home screen
   await sleep(1500);
@@ -489,7 +491,7 @@ await step("▶ on a planned or backlog thing starts a block: home shows it, the
 
 await step("“Contar” opens the conversation about it; one message closes it", async () => {
   swipeLeft();
-  await waitPanel(1);
+  await waitPanel(P_SAVED);
   const first = await js(`(S.data.mobile.plan.top.find(x => x.kind !== "commitment") || {}).title`);
   if (!first) throw new Error("nothing to talk about");
   await tapEl("#l-p2 .l-close-btn");
@@ -507,7 +509,7 @@ await step("“Contar” opens the conversation about it; one message closes it"
 
 await step("Swiping a row in Hoy left uncovers Hecho; it closes it, and Deshacer brings it back", async () => {
   swipeLeft();
-  await waitPanel(1);
+  await waitPanel(P_SAVED);
   const r = await js(`(() => { const el = document.querySelector("#l-p2 [data-swipe]"); if (!el) return null; const b = el.getBoundingClientRect(); return { x: b.left, y: b.top + b.height / 2, w: b.width, i: Number(el.dataset.swipe), title: S.data.mobile.plan.top[Number(el.dataset.swipe)].title, dpr: devicePixelRatio }; })()`);
   if (!r) throw new Error("no row to swipe");
   const px = (v) => Math.round(v * r.dpr);

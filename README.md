@@ -1,7 +1,7 @@
 <h1 align="center">unibox</h1>
 
-<p align="center"><b>A calm Android launcher and a personal assistant that saves what you want to read, learn, research or do,<br>
-finds the slot to do it, and keeps the infinite feeds from eating your day.</b></p>
+<p align="center"><b>A calm Android launcher that guards you from the infinite feeds, and shows you how you really live:<br>
+sleep, phone use and the patterns in them, day by day. Self-hosted.</b></p>
 
 <p align="center">
   <img alt="license MIT" src="https://img.shields.io/badge/license-MIT-3F6B4C">
@@ -10,40 +10,43 @@ finds the slot to do it, and keeps the infinite feeds from eating your day.</b><
 </p>
 
 <p align="center">
-  <a href="docs/demo.mp4"><img src="docs/poster.png" alt="Watch the 45 second demo" width="720"></a><br>
-  <sub>▶ 45 s demo (the interface running on fictional data; the notification scene is a recreation)</sub>
+  <a href="docs/demo.mp4"><img src="docs/poster.png" alt="Watch the 55 second demo" width="720"></a><br>
+  <sub>▶ 55 s demo (the interface running on fictional data; the notification scene is a recreation)</sub>
 </p>
 
 <p align="center">
   <img src="docs/screens/home.png" width="190" alt="Home">
-  <img src="docs/screens/saved.png" width="190" alt="Saved">
+  <img src="docs/screens/days.png" width="190" alt="Your days">
   <img src="docs/screens/screen-time.png" width="190" alt="Screen time">
   <img src="docs/screens/sleep.png" width="190" alt="Sleep">
 </p>
 
-Unibox is two things that work together:
+Unibox is a launcher with three panels, one swipe apart: **Días** on the left, **home** in the middle,
+**Guardado** on the right. Home is one screen: the time, the few apps you actually use at this hour
+(learned from your own usage), your screen time and a line to tell the assistant something. Everything
+else is one swipe up (all apps, search) or one swipe sideways.
 
-**1. A launcher that gets out of the way.** One screen: the time, the few apps you actually use at
-this hour (learned from your own usage), and a line to tell the assistant something. Everything
-else is one swipe or one search away.
-
-**2. An assistant that does the remembering.** Throw anything at it (a link, a paper, a thought, a
-voice note, a WhatsApp to yourself) and it files it, estimates the effort and suggests it when you
-have a gap. It doesn't nag you with a to-do list; it proposes one next step.
+Behind it there is an optional **assistant** that saves what you want to read, learn, research or do and
+finds the slot for it. It has a switch: with *Pausar tareas* nothing is suggested, planned or nudged, and
+nothing is deleted. The showcase above runs with it paused.
 
 ## What it does
 
 | | |
 |---|---|
-| **Quiet home screen** | Clock, a short list of apps for this time of day, one suggestion, and a search/ask box. No icons, no badges. |
-| **Capture anything** | Links, text, photos, voice notes, WhatsApp self-chat. Enriched and classified (action, effort, context). |
-| **Finds the slots** | Plans suggestions into the gaps of your calendar. Swipe to finish or drop; nothing is ever deleted. |
-| **Doomscroll guard** | Detects minutes of steady scrolling in feeds, warns you at 3 minutes and closes the feed for a while if you keep going. |
+| **Días** | The left panel. Averages for the last week, the patterns in your data and a day-by-day history (screen, sleep, pickups, doomscroll warnings; tap a day for first and last use and its top apps). |
+| **Patterns** | Pickups per day, first and last look, late-night use, weekdays against weekends, and whether short nights coincide with late phone use. Said as facts with their numbers, never as causes. |
+| **Doomscroll guard** | Detects minutes of steady scrolling in feeds, warns you at 3 minutes and closes the feed for a while if you keep going. Each closed feed is counted in your history. |
 | **App rules** | Feeds that stay closed, feeds that only limit scrolling, games with a daily budget, and essentials (banks, maps, calls, authenticators) that can never be blocked. |
-| **Screen time** | Today's total against a limit you set, per-app breakdown and the last 7 days. Alerts at 75 %, at the limit and every extra hour. Computed on the phone. |
+| **Screen time** | Today against a limit you set, per-app breakdown, the last 7 days. Alerts at 75 %, at the limit and every extra hour. Computed on the phone. |
 | **Sleep estimate** | From your last use at night to your alarm or first pickup. Nights are charted with 7 and 30 day averages. |
 | **A guardian** | Uninstalling Unibox or switching off its protection asks for a code that someone else chose. |
 | **Hold to uninstall** | Long-press an app in the drawer or in search results. |
+| **Assistant (optional)** | Capture links, notes and voice; classify and plan them into the gaps of your calendar. Pausable. |
+
+**Extending Días.** Any number you can get once a day fits: add an entry to `M_METRICS` in
+`web/mobile.js` (a `get(day)` and a `fmt`) and it shows up in the strip and the day list. Steps, mood,
+workouts or a server-side source are the obvious next ones.
 
 ## Principles
 
@@ -235,13 +238,13 @@ At phone width (and in the Android app) unibox shows its own interface
 (`web/mobile.js`, `web/mobile.css`; Geist fonts in `web/fonts/`). It is in Spanish, and so is the
 text the model writes (`UNIBOX_LANG=es`, the default; `en` switches back).
 
-- **Home** — time, a few apps for this hour, the one suggestion (*Descartar* drops it), the
-  screen-time line and last night's sleep. Swipe up for all apps.
-- **Guardado** — everything you saved, as swipe rows (*Hecho* / *Quitar*), with links to goals and
+- **Días** (left) — last-7-day averages, patterns, and the day-by-day list with expandable days.
+- **Home** (middle) — time, a few apps for this hour, the suggestion when tasks are on (*Descartar*
+  drops it), screen time and last night's sleep. Swipe up for all apps.
+- **Guardado** (right) — everything you saved as swipe rows (*Hecho* / *Quitar*), and links to goals and
   journal, sleep, screen time, connections and the removed items.
-- **Pantalla** and **Sueño** — your stats, drawn from the phone's own usage records.
-- Tasks can be paused entirely (*Pausar tareas*): nothing is suggested, planned or nudged, and
-  nothing is deleted.
+- **Pantalla** and **Sueño** — your stats in detail, drawn from the phone's own usage records.
+- *Pausar tareas* turns the assistant's suggestions off entirely; nothing is deleted.
 
 The classic desktop screens (Triage, Dump, Sessions) are still available from *Conexiones*.
 

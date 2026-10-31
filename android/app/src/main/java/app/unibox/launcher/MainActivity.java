@@ -84,6 +84,12 @@ public class MainActivity extends BridgeActivity {
             return ScreenTime.json(getApplicationContext(), System.currentTimeMillis());
         }
 
+        /** The last n days, one record each: screen minutes, pickups, first/last use, late use, doomscroll episodes, top apps. */
+        @JavascriptInterface
+        public String dayStats(int n) {
+            return DayStats.json(getApplicationContext(), System.currentTimeMillis(), Math.max(1, Math.min(30, n)));
+        }
+
         @JavascriptInterface
         public void setScreenLimit(int minutes) {
             ScreenTime.setLimit(getApplicationContext(), minutes);

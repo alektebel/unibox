@@ -6,10 +6,12 @@ function mKeepDraft(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.
 const M = {
   tab: "hoy", sheet: false, draft: mStored("unibox_draft"), openGoal: null, showIgnored: false, hideAnticipo: false,
   chat: [], chatBusy: false, plan: null, chatDraft: mStored("unibox_goal_draft"), recording: false,
-  apps: null, appQuery: "", panel: 0, drawer: false
+  apps: null, appQuery: "", panel: 1, drawer: false
 };
 if (window.UniboxNative && !window.Capacitor) window.Capacitor = { triggerEvent() {} };
 // Inside the Android app Unibox is the home screen: it also lists your apps and enforces the policy.
+// the launcher's panels, left to right
+const P_DAYS = 0, P_HOME = 1, P_SAVED = 2;
 const M_NATIVE = !!(window.UniboxNative && window.UniboxNative.listApps);
 const M_TABS = [
   { key: "hoy", name: "Hoy", icon: `<span style="font-size:15px;line-height:1">✦</span>` },
@@ -224,6 +226,115 @@ function mPantalla() {
     </div>`;
 }
 
+// --- Días: the day-by-day history and the patterns in it ---------------------------------
+// Everything here comes from the phone's own records (screen, pickups, late use, doomscrolling) and the
+// sleep nights; nothing is invented and nothing leaves the phone except the sleep nights.
+// To add a new source of data (steps, mood, anything with one number per day), add an entry to M_METRICS:
+// get(day) returns a number or null, fmt turns it into text. The day list and the strip pick it up.
+const M_METRICS = [
+  { key: "screen", label: "Pantalla", get: (d) => d.min || null, fmt: mDur },
+  { key: "sleep", label: "Sueño", get: (d) => d.sleep ?? null, fmt: mDur },
+  { key: "pickups", label: "Desbloqueos", get: (d) => d.events ? d.pickups : null, fmt: (n) => String(n) },
+  { key: "doom", label: "Scroll sin fin", get: (d) => d.events && d.doom ? d.doom : null, fmt: (n) => n === 1 ? "1 aviso" : n + " avisos" },
+];
+
+function mLoadDays() {
+  try {
+    const j = window.UniboxNative.dayStats(14);
+    M.days = j ? JSON.parse(j) : null;
+  } catch { M.days = null; }
+}
+const mKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const mAvg = (xs) => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null;
+const mClock = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+const mMinOfDay = (t) => { const d = new Date(t); return d.getHours() * 60 + d.getMinutes(); };
+
+/** The phone's days (newest first) with each night's sleep attached to the morning it ended on. */
+function mDayList() {
+  const nights = {};
+  for (const n of (S.data.mobile.sleep?.nights || [])) nights[n.date] = n.minutes;
+  return [...(M.days || [])].reverse().map((d) => ({ ...d, sleep: nights[mKey(d.date)] ?? null }));
+}
+
+/** Patterns, said as plain facts with the numbers behind them. Nothing shows until there's enough to say it. */
+function mPatterns(days) {
+  const out = [];
+  const real = days.filter((d) => d.events && d.date < new Date().setHours(0, 0, 0, 0));
+  const pk = real.map((d) => d.pickups);
+  if (pk.length >= 3) out.push(["Desbloqueos", `Lo coges unas ${mAvg(pk)} veces al día.`]);
+  const firsts = real.filter((d) => d.first).map((d) => mMinOfDay(d.first));
+  const lasts = real.filter((d) => d.last).map((d) => mMinOfDay(d.last));
+  if (firsts.length >= 3 && lasts.length >= 3) out.push(["Ritmo", `Lo miras por primera vez hacia las ${mClock(mAvg(firsts))} y por última hacia las ${mClock(mAvg(lasts))}.`]);
+  // late use before each morning: from 23:00 the evening before and until 05:00 that morning
+  const byKey = {};
+  for (const d of days) byKey[mKey(d.date)] = d;
+  const nightsUse = [];
+  for (const d of days) {
+    if (!d.events || d.sleep == null) continue;
+    const prev = byKey[mKey(d.date - 86400000 + 3600000)];
+    if (!prev || !prev.events) continue;
+    nightsUse.push({ late: (prev.lateEve || 0) + (d.lateEarly || 0), sleep: d.sleep });
+  }
+  const lateAll = mAvg(days.filter((d) => d.events).map((d) => (d.lateEve || 0) + (d.lateEarly || 0)));
+  if (lateAll != null && lateAll >= 10) out.push(["Noche", `Pasas unos ${lateAll} min de media en el móvil entre las 23:00 y las 5:00.`]);
+  const many = nightsUse.filter((n) => n.late > 15), few = nightsUse.filter((n) => n.late <= 15);
+  if (many.length >= 2 && few.length >= 2) {
+    out.push(["Sueño y noche", `Con más de 15 min de móvil de madrugada dormiste ${mDur(mAvg(many.map((n) => n.sleep)))}; con menos, ${mDur(mAvg(few.map((n) => n.sleep)))}. Es una coincidencia en tus datos, no una causa.`]);
+  }
+  const wk = real.filter((d) => ![0, 6].includes(new Date(d.date).getDay())).map((d) => d.min);
+  const we = real.filter((d) => [0, 6].includes(new Date(d.date).getDay())).map((d) => d.min);
+  if (wk.length >= 2 && we.length >= 2) out.push(["Semana", `Entre semana, ${mDur(mAvg(wk))} de pantalla; el fin de semana, ${mDur(mAvg(we))}.`]);
+  const lastWeek = days.filter((d) => d.events).slice(0, 7);
+  const doom = lastWeek.reduce((a, d) => a + (d.doom || 0), 0);
+  if (lastWeek.length >= 3) out.push(["Scroll sin fin", doom ? `${doom} ${doom === 1 ? "vez" : "veces"} en 7 días hubo que cerrarte un feed.` : "Ningún feed cerrado por scroll sin fin en 7 días."]);
+  return out;
+}
+
+function mDayRow(d, limit) {
+  const day = new Date(d.date);
+  const label = day.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" });
+  const parts = M_METRICS.map((m) => { const v = m.get(d); return v == null ? "" : `${m.label} ${m.fmt(v)}`; }).filter(Boolean);
+  const open = M.dayOpen === d.date;
+  const w = Math.min(100, Math.round((d.min || 0) / limit * 100));
+  const more = [
+    d.first ? `Primera vez ${mHHMM(d.first)}` : "", d.last ? `última ${mHHMM(d.last)}` : "",
+    (d.lateEve || d.lateEarly) ? `de noche ${(d.lateEve || 0) + (d.lateEarly || 0)} min` : "",
+  ].filter(Boolean).join(" · ");
+  return `<button class="d-row${open ? " open" : ""}" onclick="mToggleDay(${d.date})">
+      <span class="d-top"><b>${esc(label)}</b><span class="d-bar"><i class="${(d.min || 0) > limit ? "over" : ""}" style="width:${w}%"></i></span></span>
+      <span class="d-line">${esc(parts.join(" · ") || "sin datos")}</span>
+      ${open ? `<span class="d-more">${esc(more)}${(d.top || []).length ? `<br>${esc(d.top.map((a) => `${a.label} ${mDur(a.min)}`).join(" · "))}` : ""}${d.events ? "" : "<br>Android ya no guarda los desbloqueos de este día."}</span>` : ""}
+    </button>`;
+}
+function mToggleDay(t) { M.dayOpen = M.dayOpen === t ? null : t; render(); }
+window.mToggleDay = mToggleDay;
+
+function mDias() {
+  const days = mDayList();
+  const limit = (M.screen && M.screen.limit) || 240;
+  if (!M_NATIVE || !days.length) {
+    return `<div class="m-titleblock"><div class="m-kicker">TUS DÍAS</div><h1 class="m-h1">Aún sin datos</h1></div>
+      <div class="m-empty">Aquí verás tu historial día a día: sueño, uso del móvil y patrones.</div>`;
+  }
+  const recent = days.slice(0, 7);
+  const sc = mAvg(recent.map((d) => d.min).filter((x) => x));
+  const sl = mAvg(recent.map((d) => d.sleep).filter((x) => x != null));
+  const pk = mAvg(recent.filter((d) => d.events).map((d) => d.pickups));
+  const pats = mPatterns(days);
+  return `<div class="m-titleblock"><div class="m-kicker">TUS DÍAS · MEDIAS DE LOS ÚLTIMOS 7</div><h1 class="m-h1">Cómo vas</h1></div>
+    <div class="m-sstats">
+      <div><b>${sc != null ? mDur(sc) : "–"}</b><span>pantalla</span></div>
+      <div><b>${sl != null ? mDur(sl) : "–"}</b><span>sueño</span></div>
+      <div><b>${pk != null ? pk : "–"}</b><span>desbloqueos</span></div>
+    </div>
+    <div class="l-sec">PATRONES</div>
+    ${pats.length ? pats.map(([k, t]) => `<div class="d-pat"><span>${esc(k)}</span>${esc(t)}</div>`).join("") : `<div class="m-sline">Hacen falta unos días más de datos para ver patrones.</div>`}
+    <div class="l-sec">DÍA A DÍA</div>
+    ${days.map((d) => mDayRow(d, limit)).join("")}
+    <div class="l-links"><button onclick="mGo('pantalla')">Pantalla</button><button onclick="mGo('sueno')">Sueño</button></div>
+    <p class="m-sline">Todo se calcula en el móvil con los registros de Android. Android guarda los desbloqueos unos 7 días.</p>`;
+}
+
 function mScreenLine() {
   const z = M.screen;
   if (!z) return "";
@@ -323,7 +434,7 @@ window.mHomePressed = function () {
   M.sheet = false;
   M.drawer = false;
   M.appQuery = "";
-  M.panel = 0;
+  M.panel = P_HOME;
   mGo("hoy");
   refresh();
 };
@@ -334,7 +445,7 @@ window.mBackPressed = function () {
   if (pager) M.panel = Math.round(pager.scrollLeft / pager.clientWidth);
   if (M.drawer) { M.drawer = false; M.appQuery = ""; render(); return; }
   if (M.tab !== "hoy") { mGo("hoy"); return; }  // includes the conversation
-  if (M.panel !== 0) mShowPanel(0);
+  if (M.panel !== P_HOME) mShowPanel(P_HOME);
 };
 
 // --- Launcher: home › Guardado, apps one swipe up ------------------
@@ -343,6 +454,7 @@ window.mBackPressed = function () {
 // nothing flashes, scroll positions stay, and the drawer and sheet don't replay their animation.
 function mLauncherParts() {
   return {
+    "l-p0": mDias(),
     "l-p1": mHomePanel(),
     "l-p2": mPendiente(),
     "l-drawer-slot": M.drawer ? mDrawer() : "",
@@ -358,6 +470,7 @@ function mLauncher() {
   const p = mDrawn = mLauncherParts();
   return `<div class="${mRootClass()}" id="l-root">
       <div class="l-pager" id="l-pager" onscroll="mPagerScrolled(this)">
+        <section class="l-panel" id="l-p0" aria-label="Días">${p["l-p0"]}</section>
         <section class="l-panel l-home" id="l-p1" aria-label="Inicio" ontouchstart="mSwipeStart(event)" ontouchend="mSwipeEnd(event)">${p["l-p1"]}</section>
         <section class="l-panel" id="l-p2" aria-label="Pendiente">${p["l-p2"]}</section>
       </div>
@@ -393,7 +506,7 @@ function mPatchLauncher(root) {
 
 function mSavePager() {
   const pos = {};
-  for (const id of ["l-p1", "l-p2", "l-drawer-list"]) {
+  for (const id of ["l-p0", "l-p1", "l-p2", "l-drawer-list"]) {
     const el = document.getElementById(id);
     if (el) pos[id] = el.scrollTop;
   }
@@ -513,7 +626,7 @@ function mHomePanel() {
       <div class="l-acts"><button onclick="mStartBlock()">Empezar</button><button onclick="mAskAbout({ ref: S.data.mobile.now.id })">Hecho</button><button onclick="mSkip()">Luego</button></div>`;
   }
   const nextUp = !m.block && !(m.plan && m.plan.now) && m.plan && m.plan.next
-    ? `<button class="l-next" onclick="mShowPanel(1)">Luego, a las ${mHHMM(m.plan.next.start)}: ${esc(m.plan.next.title)}</button>` : "";
+    ? `<button class="l-next" onclick="mShowPanel(P_SAVED)">Luego, a las ${mHHMM(m.plan.next.start)}: ${esc(m.plan.next.title)}</button>` : "";
   const apps = mMomentApps(w);
   const off = M_NATIVE && window.UniboxNative.blockerOn && !window.UniboxNative.blockerOn();
   return `<div class="l-top">
@@ -529,7 +642,7 @@ function mHomePanel() {
     <nav class="l-apps" aria-label="Apps para ahora">${apps.map(a => `<button onclick="mLaunch('${esc(a.pkg)}')">${esc(a.label)}${a.unread > 0 ? `<span class="l-unread">${a.unread}</span>` : ""}</button>`).join("")}</nav>
     <div class="l-bottom">
       <button class="l-capture" onclick="mOpenSheet()">Cuéntame algo…</button>
-      <div class="l-hints"><button onclick="mOpenDrawer()">Apps</button><button onclick="mShowPanel(1)">Guardado ›</button></div>
+      <div class="l-hints"><button onclick="mShowPanel(P_DAYS)">‹ Días</button><button onclick="mOpenDrawer()">Apps</button><button onclick="mShowPanel(P_SAVED)">Guardado ›</button></div>
     </div>`;
 }
 
@@ -561,7 +674,7 @@ async function mStartOn(id) {
   const t = [...b.fresh, ...b.list].find(x => x.id === id);
   if (!t) return;
   await api("/api/focus/start", { ref: t.id, title: t.title, minutes: Math.max(25, t.minutes || 25) });
-  M.panel = 0;
+  M.panel = P_HOME;
   await refresh();
 }
 
@@ -600,7 +713,7 @@ function mPendiente() {
           <button class="done" onclick="mSwipeClose(S.data.mobile.plan.top[${i}], 'done')">Hecho</button>
           <button class="arch" onclick="mSwipeClose(S.data.mobile.plan.top[${i}], 'archived')">Archivar</button></div>${row}</div>`;
     }).join("")}
-    ${!top.length ? `<button class="l-add" onclick="mShowPanel(0); setTimeout(mOpenSheet, 350)">+ Añadir algo que hacer</button>` : ""}
+    ${!top.length ? `<button class="l-add" onclick="mShowPanel(P_HOME); setTimeout(mOpenSheet, 350)">+ Añadir algo que hacer</button>` : ""}
     ${(plan.upcoming || []).length ? `<div class="l-sec">ESTA SEMANA</div>
       ${plan.upcoming.map(u => `<div class="l-week"><span class="l-when">${esc(u.when)}</span><span class="t">${esc(u.title)}</span></div>`).join("")}` : ""}
     ${(plan.ask || []).length ? `<div class="l-sec">¿SIGUE IMPORTANDO?</div>
@@ -767,7 +880,7 @@ async function mStartSlot(id) {
   const x = mSlot(id);
   if (!x) return;
   await api("/api/focus/start", { ref: x.ref, title: x.title, minutes: Math.max(10, Math.round((x.end - Math.max(Date.now(), x.start)) / 60000)) });
-  M.panel = 0;
+  M.panel = P_HOME;
   await refresh();
   if (x.url) mOpenSlot(id);
 }
@@ -777,7 +890,7 @@ async function mStartTop(i) {
   if (!x) return;
   if (x.id) return mStartSlot(x.id);
   await api("/api/focus/start", { ref: x.ref, title: x.title, minutes: 45 });
-  M.panel = 0;
+  M.panel = P_HOME;
   await refresh();
   if (x.url) window.UniboxNative?.openExternal ? UniboxNative.openExternal(x.url) : window.open(x.url, "_blank");
 }
@@ -868,7 +981,7 @@ function mDrawer() {
     </div>`;
 }
 
-if (M_NATIVE) { mLoadSleep(); mLoadScreen(); setInterval(() => { if (M.tab === "hoy" && !document.hidden) { mLoadScreen(); } }, 120000); }
+if (M_NATIVE) { mLoadSleep(); mLoadScreen(); mLoadDays(); setInterval(() => { if (M.tab === "hoy" && !document.hidden) { mLoadScreen(); mLoadDays(); } }, 120000); }
 // opened from a notification while the app was closed
 setTimeout(() => window.mOpenFromNative && window.mOpenFromNative(), 1200);
 
@@ -882,7 +995,7 @@ setInterval(() => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   // blocked/unread marks change while you're away: re-read them after this frame
-  setTimeout(() => { if (M.apps) mLoadApps(); mLoadSleep(); mLoadScreen(); refresh(); }, 0);
+  setTimeout(() => { if (M.apps) mLoadApps(); mLoadSleep(); mLoadScreen(); mLoadDays(); refresh(); }, 0);
 });
 
 // innerHTML re-renders (30 s polling) must not eat what you're typing.
@@ -902,7 +1015,7 @@ function restoreFocus(k) {
 function mGo(tab) {
   if (M.tab === "diario" && tab !== "diario") mJournalSave();
   if (M_NATIVE && tab === "hoy") {
-    M.panel = 0;
+    M.panel = P_HOME;
     M.drawer = false;
     tab = "hoy";
     clearTimeout(mPagerTimer);
