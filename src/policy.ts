@@ -49,6 +49,8 @@ export const ESSENTIALS = [
   "com.android.permissioncontroller",
   "com.google.android.packageinstaller",
   "com.miui.securitycenter",
+  // work tools: the AWS console app is never blocked (its web console is let through in browsers, on the phone)
+  "com.amazon.aws.console.mobile",
   // paying and banking: the card can never be blocked (tapping to pay opens these)
   "com.google.android.apps.walletnfcrel",
   "com.google.android.apps.nbu.paisa.user",

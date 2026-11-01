@@ -264,6 +264,11 @@ public class BlockerService extends AccessibilityService {
     private void enforce(String pkg) {
         long now = System.currentTimeMillis();
         if (ShortsGuard.browsers(this).contains(pkg) && ShortsGuard.onFeedSite(pkg)) { ShortsGuard.check(this, pkg, true); return; }
+        // a browser: read its address first, an AWS console page isn't blocked for being a browser
+        if (ShortsGuard.browsers(this).contains(pkg)) {
+            ShortsGuard.check(this, pkg, true);
+            if (ShortsGuard.onOpenSite(pkg)) return;
+        }
         Policy.Block b = Policy.decide(this, pkg, now);
         if (b == null) {
             // let through on a pass: when it runs out and you're still there, the block comes back

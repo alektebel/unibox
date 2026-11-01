@@ -99,6 +99,8 @@ final class Policy {
             b.noPass = true;
             return b;
         }
+        // a work site open in a browser (the AWS console): never blocked for being a browser
+        if (ShortsGuard.onOpenSite(pkg)) return null;
         // closed at any hour: no wait, no reason
         if (contains(p.optJSONArray("closed"), pkg)) {
             Block b = block(p, "guard:closed", "Instagram está cerrado.", "bad", 0, true);

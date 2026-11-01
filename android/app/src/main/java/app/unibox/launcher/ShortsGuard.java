@@ -101,6 +101,30 @@ final class ShortsGuard {
     static synchronized void reset() { browsers = null; }
 
     private static final Map<String, Boolean> feedSite = new HashMap<>();
+    // browsers whose address bar shows an always-open site (AWS), from the last look
+    private static final Map<String, Boolean> openSite = new HashMap<>();
+    private static boolean seenOpen;
+
+    /** Sites that are work tools, not browsing: the AWS console and sign-in, whatever the hour or the block. */
+    static boolean isOpenSite(CharSequence bar) {
+        if (bar == null) return false;
+        String t = bar.toString().trim().toLowerCase();
+        int i = t.indexOf("://");
+        if (i >= 0) t = t.substring(i + 3);
+        int end = t.length();
+        for (char c : new char[] {'/', '?', '#', ':', ' '}) {
+            int k = t.indexOf(c);
+            if (k >= 0 && k < end) end = k;
+        }
+        String host = t.substring(0, end);
+        return host.equals("aws.amazon.com") || host.endsWith(".aws.amazon.com") || host.endsWith(".awsapps.com")
+            || host.equals("aws.amazon.cn") || host.endsWith(".amazonaws.com");
+    }
+
+    /** The browser's last look found an always-open site in its address bar. */
+    static boolean onOpenSite(String pkg) {
+        return Boolean.TRUE.equals(openSite.get(pkg));
+    }
 
 
     /** The browser's last look found a feed's site (or YouTube) in its address bar. */
@@ -124,6 +148,7 @@ final class ShortsGuard {
             root.recycle();
         }
         feedSite.put(pkg, seen == VIDEO || seen == SHORTS_ON || seenSite != null);
+        openSite.put(pkg, seenOpen && seen == NOTHING);
         if (seen == BAD) {
             if (now - lastBack < 1000) return;
             lastBack = now;
@@ -187,6 +212,7 @@ final class ShortsGuard {
 
     private static int look(AccessibilityNodeInfo root, String pkg) {
         seenSite = null;
+        seenOpen = false;
         for (String id : SEARCH_BOXES) {
             List<AccessibilityNodeInfo> boxes = root.findAccessibilityNodeInfosByViewId(pkg + ":id/" + id);
             if (boxes == null) continue;
@@ -205,6 +231,7 @@ final class ShortsGuard {
             for (AccessibilityNodeInfo b : bars) {
                 barFound = true;
                 CharSequence t = b.getText();
+                if (isOpenSite(t)) seenOpen = true;
                 String hit = bad(t);
                 if (hit != null) { badWhat = hit; level = BAD; }
                 else if (level == BAD) { /* keep it */ }
